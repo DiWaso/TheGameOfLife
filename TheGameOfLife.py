@@ -4,7 +4,7 @@ pygame.init()
 
 WIDTH = 450
 HEIGHT = 550
-GAME_HEIGHT = 450
+GAME_HEIGHT = HEIGHT - 100
 FPS = 60
 clock = pygame.time.Clock()
 
@@ -35,7 +35,8 @@ stop_icon = pygame.transform.scale(pygame.image.load("./images/stop.png"), (35, 
 
 class WorldMap:
     def __init__(self):
-        self.map = [[0 for _ in range(WIDTH // cell_size)] for _ in range(HEIGHT // cell_size)]
+        self.map = [[0 for _ in range(int(WIDTH*1.2) // cell_size)] for _ in range(HEIGHT // cell_size)]
+        self.generations = 0
 
     def checkGrid(self):
         temp_map = [row[:] for row in self.map]
@@ -60,6 +61,7 @@ class WorldMap:
                         temp_map[index_row][index_col] = "x"
 
         self.map = temp_map
+        self.generations += 1
 
     def drawMap(self):
         for index_row, row in enumerate(self.map):
@@ -83,19 +85,22 @@ class WorldMap:
                 else:
                     self.map[y // cell_size][x // cell_size] = "x"
 
-        pygame.time.wait(50)
+        pygame.time.wait(135)
 
-    def autoPlay(self, menuObject):
-        genCount = 1
-        click = pygame.mouse.get_pressed()
+    def autoPlay(self, menuObject, mapMenuObject):
 
         stop_button = Rect(135 + margin*4.5, GAME_HEIGHT + margin*5, 135, 45)
         stop_text = font.render("Stop", True, (255, 255, 255))
 
         run = True
         while run:
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN and stop_button.collidepoint(event.pos):
+                    run = False
+
             self.checkGrid()
             self.drawMap()
+            mapMenuObject.drawMapMenu()
 
             menuObject.drawMenu()
             
@@ -104,16 +109,8 @@ class WorldMap:
             win.blit(stop_icon, (135 + margin*6, GAME_HEIGHT + 5 + margin*5))
             win.blit(stop_text, (185 + margin*6, GAME_HEIGHT + 10 + margin*5))
 
-            gen_text = font.render(str(genCount), True, (0, 0, 0))
-            win.blit(gen_text, (WIDTH - 100, GAME_HEIGHT - 50))
-            genCount += 1
-
-            if click[0] == 1:
-                if stop_button.collidepoint(pygame.mouse.get_pos()):
-                    break
-
             pygame.display.update()
-            pygame.time.wait(300)
+            pygame.time.wait(600)
 
 class Menu:
     def __init__(self):
@@ -146,24 +143,39 @@ class Menu:
 
         return [clear_button, play_button, next_button]
     
-    def menuFunctions(self, menuObjects, mouse):
+    def menuFunctions(self, menuObjects, mapMenuObject, mouse):
         clear_button = menuObjects[0]
         play_button = menuObjects[1]
         next_button = menuObjects[2]
+
         click = pygame.mouse.get_pressed()
 
         if click[0] == 1:
             if clear_button.collidepoint(mouse):
-                playGrid.map = [[0 for _ in range(WIDTH // cell_size)] for _ in range(HEIGHT // cell_size)]
-            elif play_button.collidepoint(mouse):
-                playGrid.autoPlay(self)
+                playGrid.map = [[0 for _ in range(int(WIDTH*1.2) // cell_size)] for _ in range(HEIGHT // cell_size)]
+                playGrid.generations = 0
             elif next_button.collidepoint(mouse):
                 playGrid.checkGrid()
+            elif play_button.collidepoint(mouse):
+                playGrid.autoPlay(self, mapMenuObject)
 
-        pygame.time.wait(175)
+class mapMenu:
+    def __init__(self):
+        self.surface = pygame.Surface((cell_size*4, cell_size*3))
+
+    def drawMapMenu(self):
+        self.surface.set_alpha(180)
+        self.surface.fill(DARK_GRAY)
+        win.blit(self.surface, (WIDTH - cell_size*4 - margin, GAME_HEIGHT - cell_size*3 - margin))
+
+        gen_text = font.render(str(playGrid.generations), True, (0, 0, 0))
+        win.blit(gen_text, (WIDTH - 100, GAME_HEIGHT - 50))
+
+        pygame.display.update()
 
 playGrid = WorldMap()
 gameMenu = Menu()
+gameMapMenu = mapMenu()
 
 def main():
     run = True
@@ -171,7 +183,7 @@ def main():
     while run:
         clock.tick(FPS)
         mouse = pygame.mouse.get_pos()
-
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -179,8 +191,10 @@ def main():
 
         playGrid.drawMap()
         playGrid.userDraw(mouse)
+        
+        gameMenu.menuFunctions(gameMenu.drawMenu(), gameMapMenu, mouse)
 
-        gameMenu.menuFunctions(gameMenu.drawMenu(), mouse)
+        gameMapMenu.drawMapMenu()
 
         pygame.display.update()
     pygame.quit()
